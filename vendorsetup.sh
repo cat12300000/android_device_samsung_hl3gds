@@ -1,0 +1,2 @@
+add_lunch_combo cm_hl3gds-eng
+add_lunch_combo cm_hl3gds-userdebug
