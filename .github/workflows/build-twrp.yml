@@ -43,6 +43,11 @@ jobs:
           echo "f3fb077167b04df282043b4530557251  zImage" | md5sum -c -
           echo "79f9410b09c868d1eff7f6eb5ffcf8a8  dtb" | md5sum -c -
 
+      - name: Show prebuilt sizes
+        run: |
+          ls -l "$GITHUB_WORKSPACE/prebuilt/"
+          echo "Recovery partition limit: 10485760 bytes"
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
@@ -104,6 +109,16 @@ jobs:
           rsync -a --exclude='.git' --exclude='.github' --exclude='artifacts' \
             "$GITHUB_WORKSPACE/" "$WORKDIR/$DEVICE_PATH/"
 
+      - name: Trim extra languages (size)
+        run: |
+          cd "$WORKDIR"
+          langdir=$(find bootable/recovery -type d -name languages | head -n 1 || true)
+          if [ -n "$langdir" ]; then
+            echo "Trimming $langdir"
+            find "$langdir" -maxdepth 1 -name '*.xml' ! -name 'en.xml' -delete
+            ls "$langdir"
+          fi
+
       - name: Build recovery
         run: |
           set -eo pipefail
@@ -137,6 +152,18 @@ jobs:
           sh "$WORKDIR/$DEVICE_PATH/tools/append_samsung_trailer.sh" "$image"
           tail -c 272 "$image" | grep -aq 'SEANDROIDENFORCE'
           stat -c '%n %s bytes' "$image"
+
+      - name: Check image fits real partition
+        run: |
+          set -euo pipefail
+          image="$WORKDIR/out/target/product/hl3gds/recovery.img"
+          size=$(stat -c %s "$image")
+          limit=10485760
+          echo "recovery.img = $size bytes, partition = $limit bytes"
+          if [ "$size" -gt "$limit" ]; then
+            echo "ERROR: image is $((size - limit)) bytes too big for the partition"
+            exit 1
+          fi
 
       - name: Package recovery
         run: |
