@@ -37,9 +37,8 @@ BOARD_SUPPRESS_SECURE_ERASE := true
 TARGET_USERIMAGES_USE_EXT4 := true
  
 # Partitions
-# Set this to the REAL size of your recovery partition (check /proc/partitions
-# on the phone: blocks x 1024). 10485760 = 10 MB.
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 10485760
+BOARD_FLASH_BLOCK_SIZE := 131072
  
 # Recovery
 TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery.fstab
