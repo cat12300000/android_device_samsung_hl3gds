@@ -23,7 +23,7 @@ env:
   MANIFEST: ${{ github.event.inputs.manifest || 'twrp-9.0' }}
   DEVICE: hl3gds
   DEVICE_PATH: device/samsung/hl3gds
-  WORKDIR: ${{ runner.temp }}/twrp
+  WORKDIR: /tmp/twrp
 
 jobs:
   build:
