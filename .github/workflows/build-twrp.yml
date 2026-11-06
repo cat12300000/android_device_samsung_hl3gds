@@ -12,7 +12,7 @@ on:
           - twrp-7.1
           - twrp-8.1
           - twrp-9.0
-        default: twrp-6.0
+        default: twrp-5.1
         required: true
   push:
     branches:
