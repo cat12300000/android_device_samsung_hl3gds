@@ -125,6 +125,14 @@ jobs:
           fi
           mka recoveryimage
 
+      - name: Show recovery size breakdown
+        if: always()
+        run: |
+          product="$WORKDIR/out/target/product/hl3gds"
+          ls -lh "$product/recovery.img" "$product/ramdisk-recovery.img" "$product/kernel" 2>/dev/null || true
+          du -sh "$product/recovery/root" "$product/system" 2>/dev/null || true
+          du -ah "$product/recovery/root" 2>/dev/null | sort -h | tail -n 60 || true
+
       - name: Patch Samsung DTB size
         run: |
           set -euo pipefail
