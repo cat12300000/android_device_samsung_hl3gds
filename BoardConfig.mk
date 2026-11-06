@@ -23,10 +23,12 @@ BOARD_KERNEL_BASE := 0x00000000
 BOARD_KERNEL_PAGESIZE := 2048
 BOARD_KERNEL_IMAGE_NAME := zImage
 BOARD_KERNEL_CMDLINE := console=null androidboot.console=null androidboot.hardware=qcom user_debug=31 maxcpus=4 msm_rtb.filter=0x3F
-# The kernel is 3.4.0 and cannot read the SELinux policy (v30) shipped in the
-# TWRP ramdisk. init then reboots into recovery = recovery loop.
-# selinux=0 disables SELinux in the kernel so init skips loading the policy.
-BOARD_KERNEL_CMDLINE += selinux=0 androidboot.selinux=permissive
+# The stock 3.4.0 kernel cannot load the SELinux policy (v30) and has no
+# selinux=0 parameter, so the Android 6.0 init in the TWRP ramdisk bootloops.
+# The fix is not in the cmdline: tools/make_hybrid_recovery.py (run from
+# Android.mk after recovery.img is built) swaps in the stock 4.3 init. That
+# kernel does understand enforcing=0, so run SELinux permissive.
+BOARD_KERNEL_CMDLINE += selinux=0 androidboot.selinux=permissive enforcing=0
 ifneq ($(filter omni_hl3gds,$(TARGET_PRODUCT)),)
 BOARD_MKBOOTIMG_ARGS := --kernel_offset 0x00008000 --ramdisk_offset 0x02000000 --tags_offset 0x01e00000 --dt $(DEVICE_PATH)/prebuilt/dtb
 else
