@@ -4,12 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       manifest:
-        description: TWRP manifest branch
+        description: TWRP manifest branch (older = smaller recovery)
         type: choice
         options:
+          - twrp-5.1
+          - twrp-6.0
+          - twrp-7.1
+          - twrp-8.1
           - twrp-9.0
-          - twrp-11
-        default: twrp-9.0
+        default: twrp-7.1
         required: true
   push:
     branches:
@@ -20,7 +23,7 @@ permissions:
   contents: read
 
 env:
-  MANIFEST: ${{ github.event.inputs.manifest || 'twrp-9.0' }}
+  MANIFEST: ${{ github.event.inputs.manifest || 'twrp-7.1' }}
   DEVICE: hl3gds
   DEVICE_PATH: device/samsung/hl3gds
   WORKDIR: /tmp/twrp
@@ -61,22 +64,14 @@ jobs:
             rsync schedtool squashfs-tools unzip xz-utils zip zlib1g-dev
           df -h
 
-      - name: Set up JDK 11
-        if: ${{ env.MANIFEST != 'twrp-9.0' }}
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '11'
-
+      # All offered branches (5.1 - 9.0) are Android 5-9 based: JDK 8 + Python 2
       - name: Set up JDK 8
-        if: ${{ env.MANIFEST == 'twrp-9.0' }}
         uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: '8'
 
-      - name: Install Python 2 for TWRP 9
-        if: ${{ env.MANIFEST == 'twrp-9.0' }}
+      - name: Install Python 2
         run: |
           sudo apt-get install -y python2
           sudo ln -sf /usr/bin/python2 /usr/bin/python
@@ -97,12 +92,9 @@ jobs:
           cd "$WORKDIR"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ "$MANIFEST" = "twrp-9.0" ]; then
-            manifest_url="https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git"
-          else
-            manifest_url="https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
-          fi
-          repo init --depth=1 -u "$manifest_url" -b "$MANIFEST"
+          repo init --depth=1 \
+            -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git \
+            -b "$MANIFEST"
           repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
           df -h
 
@@ -117,12 +109,9 @@ jobs:
           set -eo pipefail
           cd "$WORKDIR"
           export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL=C
           source build/envsetup.sh
-          if [ "$MANIFEST" = "twrp-9.0" ]; then
-            lunch omni_hl3gds-eng
-          else
-            lunch twrp_hl3gds-eng
-          fi
+          lunch omni_hl3gds-eng
           mka recoveryimage
 
       - name: Show recovery size breakdown
