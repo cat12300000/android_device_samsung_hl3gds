@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       manifest:
-        description: TWRP manifest branch (older = smaller recovery yes sarrr)
+        description: TWRP manifest branch (older = smaller recovery)
         type: choice
         options:
           - twrp-5.1
@@ -108,16 +108,18 @@ jobs:
           mkdir -p "$WORKDIR/device/samsung"
           rsync -a --exclude='.git' --exclude='.github' --exclude='artifacts' \
             "$GITHUB_WORKSPACE/" "$WORKDIR/$DEVICE_PATH/"
+          # Build with a relaxed limit (32 MB) in the build copy only.
+          # The real 10 MB limit is enforced after the LZMA repack step.
+          grep -rlE '^BOARD_RECOVERYIMAGE_PARTITION_SIZE' "$WORKDIR/$DEVICE_PATH" --include='*.mk' \
+            | xargs -r sed -i -E 's/^(BOARD_RECOVERYIMAGE_PARTITION_SIZE[[:space:]]*:?=[[:space:]]*).*/\1 33554432/'
+          grep -rn 'BOARD_RECOVERYIMAGE_PARTITION_SIZE' "$WORKDIR/$DEVICE_PATH" --include='*.mk' || true
 
       - name: Trim extra languages (size)
         run: |
           cd "$WORKDIR"
-          langdir=$(find bootable/recovery -type d -name languages | head -n 1 || true)
-          if [ -n "$langdir" ]; then
-            echo "Trimming $langdir"
-            find "$langdir" -maxdepth 1 -name '*.xml' ! -name 'en.xml' -delete
-            ls "$langdir"
-          fi
+          find . -path './out' -prune -o -type d -name languages -print
+          find bootable -path '*/languages/*.xml' ! -name 'en.xml' -print -delete | wc -l
+          find bootable -path '*/languages/*.xml' -print
 
       - name: Build recovery
         run: |
@@ -128,6 +130,66 @@ jobs:
           source build/envsetup.sh
           lunch omni_hl3gds-eng
           mka recoveryimage
+
+      - name: Repack ramdisk with LZMA
+        run: |
+          set -euo pipefail
+          image="$WORKDIR/out/target/product/hl3gds/recovery.img"
+          cp "$image" "$image.orig"
+          python3 - "$image" <<'PYEOF'
+          import gzip, hashlib, struct, subprocess, sys
+
+          path = sys.argv[1]
+          d = open(path, 'rb').read()
+          assert d[:8] == b'ANDROID!', 'not an Android boot image'
+          (ksize, kaddr, rsize, raddr, ssize, saddr,
+           taddr, page, dtsize, osver) = struct.unpack('<10I', d[8:48])
+          name, cmdline, extra = d[48:64], d[64:576], d[608:1632]
+
+          def pg(n):
+              return (n + page - 1) // page * page
+
+          ko = page
+          ro = ko + pg(ksize)
+          so = ro + pg(rsize)
+          do = so + pg(ssize)
+          kernel = d[ko:ko + ksize]
+          ramdisk = d[ro:ro + rsize]
+          second = d[so:so + ssize]
+          dt = d[do:do + dtsize]
+
+          print('original ramdisk: %d bytes, magic %s' % (rsize, ramdisk[:4].hex()))
+          if ramdisk[:2] == b'\x1f\x8b':
+              raw = gzip.decompress(ramdisk)
+              new = subprocess.run(['xz', '--format=lzma', '-9e', '-c'],
+                                   input=raw, stdout=subprocess.PIPE,
+                                   check=True).stdout
+              print('gzip -> lzma: %d -> %d bytes' % (len(ramdisk), len(new)))
+              if len(new) < len(ramdisk):
+                  ramdisk = new
+          else:
+              print('ramdisk is not gzip, leaving it as is')
+
+          sha = hashlib.sha1()
+          sha.update(kernel); sha.update(struct.pack('<I', ksize))
+          sha.update(ramdisk); sha.update(struct.pack('<I', len(ramdisk)))
+          sha.update(second); sha.update(struct.pack('<I', ssize))
+          if dtsize:
+              sha.update(dt); sha.update(struct.pack('<I', dtsize))
+          ident = sha.digest().ljust(32, b'\0')
+
+          hdr = struct.pack('<8s10I', b'ANDROID!', ksize, kaddr, len(ramdisk),
+                            raddr, ssize, saddr, taddr, page, dtsize, osver)
+          hdr += name + cmdline + ident + extra
+
+          def padded(b):
+              return b + b'\0' * (pg(len(b)) - len(b))
+
+          out = padded(hdr) + padded(kernel) + padded(ramdisk) + padded(second) + padded(dt)
+          open(path, 'wb').write(out)
+          print('new image: %d bytes' % len(out))
+          PYEOF
+          ls -l "$image" "$image.orig"
 
       - name: Show recovery size breakdown
         if: always()
