@@ -23,7 +23,7 @@ env:
   MANIFEST: ${{ github.event.inputs.manifest || 'twrp-9.0' }}
   DEVICE: hl3gds
   DEVICE_PATH: device/samsung/hl3gds
-  WORKDIR: ${{ github.workspace }}/twrp
+  WORKDIR: ${{ runner.temp }}/twrp
 
 jobs:
   build:
@@ -109,7 +109,7 @@ jobs:
       - name: Install device tree
         run: |
           mkdir -p "$WORKDIR/device/samsung"
-          rsync -a --exclude='.git' --exclude='.github' \
+          rsync -a --exclude='.git' --exclude='.github' --exclude='artifacts' \
             "$GITHUB_WORKSPACE/" "$WORKDIR/$DEVICE_PATH/"
 
       - name: Build recovery
