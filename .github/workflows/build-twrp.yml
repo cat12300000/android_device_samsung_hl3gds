@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       manifest:
-        description: TWRP manifest branch (older = smaller recovery)
+        description: TWRP manifest branch (older = smaller recovery yes sarrr)
         type: choice
         options:
           - twrp-5.1
@@ -12,7 +12,7 @@ on:
           - twrp-7.1
           - twrp-8.1
           - twrp-9.0
-        default: twrp-7.1
+        default: twrp-6.0
         required: true
   push:
     branches:
@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 env:
-  MANIFEST: ${{ github.event.inputs.manifest || 'twrp-7.1' }}
+  MANIFEST: ${{ github.event.inputs.manifest || 'twrp-6.0' }}
   DEVICE: hl3gds
   DEVICE_PATH: device/samsung/hl3gds
   WORKDIR: /tmp/twrp
