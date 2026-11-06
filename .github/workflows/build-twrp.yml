@@ -114,7 +114,7 @@ jobs:
 
       - name: Build recovery
         run: |
-          set -euo pipefail
+          set -eo pipefail
           cd "$WORKDIR"
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
