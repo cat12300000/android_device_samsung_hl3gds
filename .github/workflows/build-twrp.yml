@@ -1,0 +1,165 @@
+name: Build TWRP
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: TWRP manifest branch
+        type: choice
+        options:
+          - twrp-9.0
+          - twrp-11
+        default: twrp-9.0
+        required: true
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+env:
+  MANIFEST: ${{ github.event.inputs.manifest || 'twrp-9.0' }}
+  DEVICE: hl3gds
+  DEVICE_PATH: device/samsung/hl3gds
+  WORKDIR: ${{ github.workspace }}/twrp
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out device tree
+        uses: actions/checkout@v4
+
+      - name: Verify prebuilt binaries
+        run: |
+          cd "$GITHUB_WORKSPACE/prebuilt"
+          echo "f3fb077167b04df282043b4530557251  zImage" | md5sum -c -
+          echo "79f9410b09c868d1eff7f6eb5ffcf8a8  dtb" | md5sum -c -
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup \
+            /usr/share/swift /opt/az /usr/lib/google-cloud-sdk \
+            /usr/local/share/powershell
+          sudo apt-get clean
+          df -h
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex g++-10-multilib g++-multilib \
+            gcc-10-multilib gcc-multilib git gnupg gperf imagemagick \
+            lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool \
+            libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libstdc++-10-dev \
+            libtinfo5 libxml2 libxml2-utils lzop pngcrush python-is-python3 \
+            rsync schedtool squashfs-tools unzip xz-utils zip zlib1g-dev
+          df -h
+
+      - name: Set up JDK 11
+        if: ${{ env.MANIFEST != 'twrp-9.0' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Set up JDK 8
+        if: ${{ env.MANIFEST == 'twrp-9.0' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Install Python 2 for TWRP 9
+        if: ${{ env.MANIFEST == 'twrp-9.0' }}
+        run: |
+          sudo apt-get install -y python2
+          sudo ln -sf /usr/bin/python2 /usr/bin/python
+          python --version
+
+      - name: Install repo
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+            -o "$HOME/bin/repo"
+          chmod a+x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Sync TWRP source
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORKDIR"
+          cd "$WORKDIR"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$MANIFEST" = "twrp-9.0" ]; then
+            manifest_url="https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git"
+          else
+            manifest_url="https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
+          fi
+          repo init --depth=1 -u "$manifest_url" -b "$MANIFEST"
+          repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
+          df -h
+
+      - name: Install device tree
+        run: |
+          mkdir -p "$WORKDIR/device/samsung"
+          rsync -a --exclude='.git' --exclude='.github' \
+            "$GITHUB_WORKSPACE/" "$WORKDIR/$DEVICE_PATH/"
+
+      - name: Build recovery
+        run: |
+          set -euo pipefail
+          cd "$WORKDIR"
+          export ALLOW_MISSING_DEPENDENCIES=true
+          source build/envsetup.sh
+          if [ "$MANIFEST" = "twrp-9.0" ]; then
+            lunch omni_hl3gds-eng
+          else
+            lunch twrp_hl3gds-eng
+          fi
+          mka recoveryimage
+
+      - name: Patch Samsung DTB size
+        run: |
+          set -euo pipefail
+          image="$WORKDIR/out/target/product/hl3gds/recovery.img"
+          python3 "$WORKDIR/$DEVICE_PATH/tools/patch_samsung_dt_size.py" \
+            "$image" "$WORKDIR/$DEVICE_PATH/prebuilt/dtb"
+
+      - name: Append Samsung trailer
+        run: |
+          set -euo pipefail
+          image="$WORKDIR/out/target/product/hl3gds/recovery.img"
+          test -f "$image"
+          sh "$WORKDIR/$DEVICE_PATH/tools/append_samsung_trailer.sh" "$image"
+          tail -c 272 "$image" | grep -aq 'SEANDROIDENFORCE'
+          stat -c '%n %s bytes' "$image"
+
+      - name: Package recovery
+        run: |
+          set -euo pipefail
+          product="$WORKDIR/out/target/product/hl3gds"
+          cd "$product"
+          name="TWRP_hl3gds_${MANIFEST}"
+          cp recovery.img "${name}.img"
+          tar -H ustar -cf "${name}.tar" recovery.img
+          md5sum recovery.img > "${name}.img.md5"
+          sha256sum recovery.img > "${name}.img.sha256"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cp "${name}.img" "${name}.tar" "${name}.img.md5" \
+            "${name}.img.sha256" "$GITHUB_WORKSPACE/artifacts/"
+          ls -lh "$GITHUB_WORKSPACE/artifacts"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TWRP-hl3gds-${{ env.MANIFEST }}
+          path: ${{ github.workspace }}/artifacts/*
+          if-no-files-found: error
+          retention-days: 14

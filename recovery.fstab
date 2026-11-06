@@ -1,0 +1,13 @@
+# TWRP fstab for Samsung Galaxy Note 3 Neo Duos (SM-N7502 / hl3gds)
+# Format: <mount point> <filesystem> <device> [alternate device] [flags]
+
+/boot        emmc  /dev/block/platform/msm_sdcc.1/by-name/boot        flags=display="Boot";backup=1
+/recovery    emmc  /dev/block/platform/msm_sdcc.1/by-name/recovery    flags=display="Recovery";backup=1
+/system      ext4  /dev/block/platform/msm_sdcc.1/by-name/system      flags=display="System";backup=1;wipeingui
+/cache       ext4  /dev/block/platform/msm_sdcc.1/by-name/cache       flags=display="Cache";backup=1;wipeingui
+/data        ext4  /dev/block/platform/msm_sdcc.1/by-name/userdata    flags=display="Data";backup=1;wipeingui;length=-16384;encryptable=footer
+/efs         ext4  /dev/block/platform/msm_sdcc.1/by-name/efs         flags=display="EFS";backup=1
+/modem       emmc  /dev/block/platform/msm_sdcc.1/by-name/apnhlos     flags=display="Modem";backup=1
+/mdm         emmc  /dev/block/platform/msm_sdcc.1/by-name/modem       flags=display="MDM";backup=1
+/preload     ext4  /dev/block/platform/msm_sdcc.1/by-name/hidden      flags=display="Preload";backup=1
+/external_sd auto  /dev/block/mmcblk1p1 /dev/block/mmcblk1             flags=display="MicroSD";storage;wipeingui;removable

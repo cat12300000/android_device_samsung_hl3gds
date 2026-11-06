@@ -1,0 +1,6 @@
+out/
+artifacts/
+.repo/
+*.img
+*.tar
+*.zip
