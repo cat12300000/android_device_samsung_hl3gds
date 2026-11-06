@@ -68,8 +68,6 @@ BOARD_HAS_NO_REAL_SDCARD := false
  
 # Features kept
 TW_INCLUDE_BATTERY_PERCENT := true
-# exFAT fuse removed for size (exFAT SD cards will not mount)
-#TW_INCLUDE_FUSE_EXFAT := true
 TW_NO_USB_STORAGE := false          # needed for OTG
 TW_EXCLUDE_DEFAULT_USB_INIT := false
 TW_USE_TOOLBOX := true
