@@ -37,7 +37,11 @@ BOARD_SUPPRESS_SECURE_ERASE := true
 TARGET_USERIMAGES_USE_EXT4 := true
  
 # Partitions
+# Set this to the REAL size of your recovery partition (check /proc/partitions
+# on the phone: blocks x 1024). 10485760 = 10 MB.
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 10485760
+# Required by the size check on Android 7.1 and older branches
+# (131072 = 64 x 2048 page size, the usual value for these Samsung devices)
 BOARD_FLASH_BLOCK_SIZE := 131072
  
 # Recovery
@@ -64,8 +68,7 @@ BOARD_HAS_NO_REAL_SDCARD := false
  
 # Features kept
 TW_INCLUDE_BATTERY_PERCENT := true
-TW_INCLUDE_FUSE_EXFAT := true
-TW_NO_USB_STORAGE := false          # needed for OTG
+TW_NO_USB_STORAGE := false
 TW_EXCLUDE_DEFAULT_USB_INIT := false
 TW_USE_TOOLBOX := true
 TW_OEM_BUILD := true
@@ -74,10 +77,15 @@ TW_NO_SCREEN_TIMEOUT := true
 TW_NO_SCREEN_BLANK := true
 TW_IGNORE_MISC_UNMOUNT := true
  
-# Size reduction
+# Size reduction (only flags that actually exist)
 TW_EXCLUDE_SUPERSU := true
 TW_EXCLUDE_TWRPAPP := true
 TW_EXCLUDE_NANO := true
 TW_EXCLUDE_ENCRYPTED_BACKUPS := true
 TW_INCLUDE_NTFS_3G := false
 TW_INCLUDE_CRYPTO := false
+ 
+# LZMA-compress the recovery ramdisk (smaller than gzip). Ignored if this
+# branch does not support it. If recovery then fails to boot, the kernel may
+# lack LZMA ramdisk support: remove this line.
+LZMA_RAMDISK_TARGETS := recovery
