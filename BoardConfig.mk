@@ -59,7 +59,7 @@ TW_EXTERNAL_STORAGE_MOUNT_POINT := "external_sd"
 TW_MTP_DEVICE := "/dev/mtp_usb"
 TW_HAS_DOWNLOAD_MODE := true
 
-# Features you want to keep
+# Keep these
 TW_INCLUDE_BATTERY_PERCENT := true
 TW_NO_BATT_PERCENT := false
 TW_NO_CPU_TEMP := false
@@ -68,15 +68,27 @@ TW_NO_EXFAT_FUSE := false
 TW_EXCLUDE_MTP := false
 TW_NO_HAPTICS := false
 TW_EXCLUDE_HAPTICS := false
-TW_EXCLUDE_BASH := false          # ← bash enabled
+TW_EXCLUDE_BASH := false
+TW_EXCLUDE_ADB := false
+TW_NO_ADB := false
+TW_EXCLUDE_NTFS_3G := true          # NTFS off
+TW_INCLUDE_NTFS_3G := false
 
-# Strong size reduction
+# OTG
+TW_INCLUDE_FUSE_EXFAT := true
+BOARD_HAS_NO_REAL_SDCARD := false
+TW_EXTERNAL_STORAGE_PATH := "/external_sd"
+TW_EXTERNAL_STORAGE_MOUNT_POINT := "external_sd"
+# OTG support
+TW_INCLUDE_NTFS_3G := false
+TARGET_USES_MKE2FS := true
+
+# Size reduction
 TW_EXCLUDE_SUPERSU := true
 TW_EXCLUDE_TWRPAPP := true
 TW_EXCLUDE_NANO := true
 TW_EXCLUDE_PYTHON := true
 TW_EXCLUDE_TZDATA := true
-TW_EXCLUDE_NTFS_3G := true
 TW_EXCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO := false
 TW_EXCLUDE_ENCRYPTED_BACKUPS := true
@@ -88,15 +100,16 @@ TW_OEM_BUILD := true
 TW_INCLUDE_FB2PNG := false
 TW_INCLUDE_INJECTTWRP := false
 TW_NO_LEGACY_PROPS := true
-TW_NO_USB_STORAGE := true
-TW_INCLUDE_FUSE_EXFAT := true
+TW_NO_USB_STORAGE := false          # needed for OTG
+TW_EXCLUDE_DEFAULT_USB_INIT := false
 
-# Extra aggressive flags
-TW_EXCLUDE_DEFAULT_USB_INIT := true
+# Extra aggressive
 TW_NO_SCREEN_TIMEOUT := true
 TW_NO_SCREEN_BLANK := true
 TW_IGNORE_MISC_UNMOUNT := true
+TW_EXCLUDE_LANGUAGES := true
+TW_EXCLUDE_FONTS := true
+TW_EXCLUDE_CHARGER := true
 
-# Ramdisk compression
-LZMA_RAMDISK_TARGETS := recovery
-BOARD_RAMDISK_USE_LZMA := true
+# Compression
+BOARD_RAMDISK_USE_LZ4 := true
