@@ -1,4 +1,3 @@
-
 DEVICE_PATH := device/samsung/hl3gds
  
 # Build environment
@@ -24,6 +23,7 @@ BOARD_KERNEL_BASE := 0x00000000
 BOARD_KERNEL_PAGESIZE := 2048
 BOARD_KERNEL_IMAGE_NAME := zImage
 BOARD_KERNEL_CMDLINE := console=null androidboot.console=null androidboot.hardware=qcom user_debug=31 maxcpus=4 msm_rtb.filter=0x3F
+BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 ifneq ($(filter omni_hl3gds,$(TARGET_PRODUCT)),)
 BOARD_MKBOOTIMG_ARGS := --kernel_offset 0x00008000 --ramdisk_offset 0x02000000 --tags_offset 0x01e00000 --dt $(DEVICE_PATH)/prebuilt/dtb
 else
@@ -68,7 +68,9 @@ BOARD_HAS_NO_REAL_SDCARD := false
  
 # Features kept
 TW_INCLUDE_BATTERY_PERCENT := true
-TW_NO_USB_STORAGE := false
+# exFAT fuse removed for size (exFAT SD cards will not mount)
+#TW_INCLUDE_FUSE_EXFAT := true
+TW_NO_USB_STORAGE := false          # needed for OTG
 TW_EXCLUDE_DEFAULT_USB_INIT := false
 TW_USE_TOOLBOX := true
 TW_OEM_BUILD := true
@@ -84,8 +86,3 @@ TW_EXCLUDE_NANO := true
 TW_EXCLUDE_ENCRYPTED_BACKUPS := true
 TW_INCLUDE_NTFS_3G := false
 TW_INCLUDE_CRYPTO := false
- 
-# LZMA-compress the recovery ramdisk (smaller than gzip). Ignored if this
-# branch does not support it. If recovery then fails to boot, the kernel may
-# lack LZMA ramdisk support: remove this line.
-LZMA_RAMDISK_TARGETS := recovery
